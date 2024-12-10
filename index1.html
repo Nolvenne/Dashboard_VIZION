@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width", initial-scale="1.0">
+    <link rel="stylesheet", href="file1.css">
+    <title>Time Serie Data: woldwid Solar energy comsuption</title>
+    <style>
+        .center-text {
+            text-align: center;
+        }
+        .rigth-text{
+            text-align: right;
+        }
+    </style>
+</head>
+<body>
+ <div>
+    <div class="center-text">
+        <h2>Solar Energy Production and consumption</h2>
+        <h4> Production graph </h4>
+    </div>
+ </div>
+
+ <div class=""Chart>
+      <div class="rigth-text">
+           <button onclick="setChartType('bar')">Bars</button>
+           <button onclick="setChartType('line')">Line</button>
+           <button onclick="setChartType('Doughnut')">Doughnut</button>
+           <button onclick="setChartType('PolarArea')">PolarArea</button>
+           <button onclick="setChartType('Radar')">Radar</button>
+       </div>
+
+        <canvas id="myChart"></canvas>
+  </div>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="script1.js"></script>
+</body>
+</html>

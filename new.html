@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Solar Capacity Map</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+    }
+    #container {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+    #projection-select {
+      margin-bottom: 10px;
+    }
+    #map {
+      border: 1px solid black;
+    }
+  </style>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <script src="https://unpkg.com/topojson-client@3"></script>
+</head>
+<body>
+  <h3>Global Center of Solar Production vs GDP per Capita vs Population</h3>
+
+  <div id="container">
+    <label for="projection-select">Select Projection:</label>
+    <select id="projection-select">
+      <option value="geoNaturalEarth1">Natural Earth</option>
+      <option value="geoEqualEarth">Equal Earth</option>
+      <option value="geoEquirectangular">Equirectangular</option>
+    </select>
+    <svg id="map" width="960" height="500"></svg>
+  </div>
+
+  <script>
+    var width = 960,
+        height = 500;
+
+    var svg = d3.select("#map")
+        .attr("width", width)
+        .attr("height", height);
+
+    var g = svg.append("g");
+    var map = g.append("g");
+    var solarCirclesGroup = g.append("g");
+    
+    var populationCirclesGroup = g.append("g");
+    var gdppcCirclesGroup = g.append("g");
+
+
+
+
+    var solarData = [
+      { year: 2016, value: 295544, lat: 46.440642564, lon: 35.596384584},
+      { year: 2017, value: 390053, lat: 43.467917166, lon: 45.550936134 },
+      { year: 2018, value: 484688, lat: 40.429765662, lon: 55.3981712 },
+      { year: 2019, value: 579474, lat: 37.614403512, lon: 59.6276700495 },
+      { year: 2020, value: 709804, lat: 35.2650701, lon: 61.716949866 },
+      { year: 2021, value: 845704, lat: 33.358138804, lon: 54.46233987 }
+    ];
+
+    var populationData = [	
+      { year: 2016, lat: 29.283563328, lon: 61.429948224, value: 7542448979 },
+      { year: 2017, lat: 27.9724337445, lon: 58.764864691, value: 7629339550 },
+      { year: 2018, lat: 26.662897393, lon: 56.095144303, value: 7713469370 },
+      { year: 2019, lat: 25.359483954, lon: 53.424149121, value: 7794729086 },
+      { year: 2020, lat: 24.0604714, lon: 50.77960298, value: 7870298822 },
+      { year: 2021, lat: 22.7674348645, lon: 48.143341387, value: 7937618952 }
+    ];
+    
+    var gdppcData = [
+      { year: 2016,     lat: 27.8226894098, lon: 5.6026967143, value: 3112342.723 },
+      { year: 2017, lat: 29.163515742, lon: 12.365326764        , value: 3156206 },
+      { year: 2018, lat: 30.558973804, lon: 8.54288359785       , value: 3205062 },
+      { year: 2019, lat: 31.9611104792, lon: 13.1984957216        , value: 3251661 },
+      { year: 2020, lat: 36.7996575968, lon: 18.136386642        , value: 3036229 },
+      { year: 2021, lat: 38.3102834472, lon: 15.4770031728        , value: 3214436 }
+    ];
+
+    var minSolarValue = d3.min(solarData, d => d.value);
+    var maxSolarValue = d3.max(solarData, d => d.value);
+
+    var minPopulationValue = d3.min(populationData, d => d.value);
+    var maxPopulationValue = d3.max(populationData, d => d.value);
+
+    var mingdppcValue = d3.min(gdppcData, d => d.value);
+    var maxgdppcValue = d3.max(gdppcData, d => d.value);
+
+    var solarRadius = d3.scaleSqrt()
+        .domain([minSolarValue, maxSolarValue])
+        .range([10, 20]);
+
+    var populationRadius = d3.scaleSqrt()
+        .domain([minPopulationValue, maxPopulationValue])
+        .range([10, 20]);
+
+
+    var gdppcRadius = d3.scaleSqrt()
+        .domain([mingdppcValue, maxgdppcValue])
+        .range([10, 20]);
+
+    var colorScale = d3.scaleLinear()
+        .domain([2016, 2021])
+        .range([0.4, 1]); // Adjust the saturation scale
+
+    var currentProjectionName = 'geoNaturalEarth1';
+    var projection = d3.geoNaturalEarth1()
+        .scale(160)
+        .translate([width / 2, height / 2]);
+
+    var path = d3.geoPath()
+        .projection(projection);
+
+    var worldData;
+
+    var zoom = d3.zoom()
+        .scaleExtent([1, 8])
+        .on('zoom', zoomed);
+
+    svg.call(zoom);
+
+    d3.json("https://unpkg.com/world-atlas@1/world/110m.json").then(function(world) {
+      worldData = world;
+      updateMap();
+    });
+    
+
+
+    function updateMap() {
+      map.selectAll("*").remove();
+      solarCirclesGroup.selectAll("*").remove();
+      populationCirclesGroup.selectAll("*").remove();
+      gdppcCirclesGroup.selectAll("*").remove();
+
+      // Define the luminosity scale
+      const luminosityScale = d3.scaleLinear()
+          .domain(d3.extent(solarData, d => d.year)) // Adjust to your solarData's year range
+          .range([60, 40]);
+
+      if (currentProjectionName === 'geoEqualEarth') {
+          projection = d3.geoEqualEarth()
+              .scale(160)
+              .translate([width / 2, height / 2]);
+      } else if (currentProjectionName === 'geoEquirectangular') {
+          projection = d3.geoEquirectangular()
+              .scale((width) / (2 * Math.PI))
+              .translate([width / 2, height / 2]);
+      } else {
+          projection = d3.geoNaturalEarth1()
+              .scale(160)
+              .translate([width / 2, height / 2]);
+      }
+
+      path = d3.geoPath().projection(projection);
+
+      map.append("rect")
+          .attr("x", 0)
+          .attr("y", 0)
+          .attr("width", width)
+          .attr("height", height)
+          .attr("fill", "#add8e6");
+
+      map.append("g")
+          .selectAll("path")
+          .data(topojson.feature(worldData, worldData.objects.countries).features)
+          .join("path")
+          .attr("fill", "#ffffe0")
+          .attr("d", path)
+          .style("stroke", "black")
+          .style("stroke-width", 0.5);
+
+      var bounds = path.bounds({ type: "Sphere" });
+      var [[x0, y0], [x1, y1]] = bounds;
+
+      svg.call(zoom.translateExtent([[x0, y0], [x1, y1]]));
+
+      solarCirclesGroup.selectAll("circle")
+          .data(solarData)
+          .join("circle")
+          .attr("class", "solar-circle")
+          .attr("cx", d => projection([d.lon, d.lat])[0])
+          .attr("cy", d => projection([d.lon, d.lat])[1])
+          .attr("r", d => solarRadius(d.value))
+          .attr("fill", d => d3.hsl(100, colorScale(d.year), luminosityScale(d.year) / 100))
+          .attr("stroke", "black")
+          .attr("stroke-width", 1)
+          .attr("opacity", 0.85)
+          .append("title")
+          .text(d => `${d.year}: ${d.value.toLocaleString()} MW`);
+
+      populationCirclesGroup.selectAll("circle")
+          .data(populationData)
+          .join("circle")
+          .attr("class", "population-circle")
+          .attr("cx", d => projection([d.lon, d.lat])[0])
+          .attr("cy", d => projection([d.lon, d.lat])[1])
+          .attr("r", d => populationRadius(d.value))
+          .attr("fill", d => d3.hsl(220, colorScale(d.year), luminosityScale(d.year) / 100))
+          .attr("stroke", "black")
+          .attr("stroke-width", 1)
+          .attr("opacity", 0.85)
+          .append("title")
+          .text(d => `${d.year}: ${d.value.toLocaleString()} people`);
+
+      gdppcCirclesGroup.selectAll("circle")
+          .data(gdppcData)
+          .join("circle")
+          .attr("class", "gdppc-circle")
+          .attr("cx", d => projection([d.lon, d.lat])[0])
+          .attr("cy", d => projection([d.lon, d.lat])[1])
+          .attr("r", d => gdppcRadius(d.value))
+          .attr("fill", d => d3.hsl(0, colorScale(d.year), luminosityScale(d.year) / 100))
+          .attr("stroke", "black")
+          .attr("stroke-width", 1)
+          .attr("opacity", 0.85)
+          .append("title")
+          .text(d => `${d.year}: $${d.value.toLocaleString()} `);
+    }
+
+
+    function zoomed(event) {
+      var transform = event.transform;
+      g.attr("transform", transform);
+
+      // Scale circles dynamically with zoom level
+      solarCirclesGroup.selectAll("circle")
+          .attr("r", d => solarRadius(d.value) / transform.k)
+          .attr("stroke-width", 1 / transform.k);
+
+      populationCirclesGroup.selectAll("circle")
+          .attr("r", d => populationRadius(d.value) / transform.k)
+          .attr("stroke-width", 1 / transform.k);
+
+      gdppcCirclesGroup.selectAll("circle")
+          .attr("r", d => gdppcRadius(d.value) / transform.k)
+          .attr("stroke-width", 1 / transform.k);
+
+      
+}
+
+
+
+
+    d3.select("#projection-select").on("change", function() {
+      currentProjectionName = this.value;
+      updateMap();
+    });
+  </script>
+</body>
+</html>
